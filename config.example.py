@@ -15,6 +15,9 @@ qotd_title = "Question of the Day"
 # File where questions are/should be stored
 qotd_file = "qotd.txt"
 
+# File storing the current index (Add a single number in this file to indicate where in the qotd_file the bot should start)
+index_file = "index.txt"
+
 # Weather or not the bot should loop back to the beginning of the file when it reaches the end
 should_loop = True
 

@@ -13,8 +13,25 @@ class QOTDClient(discord.Client):
 		super().__init__(*args, **kwargs)
 		self.tree = app_commands.CommandTree(self)
 		self.target_channel = ""
-		self.index = 0
 		self.initalized = asyncio.Event()
+
+	def _get_index(self):
+		# Possibly initialize the file
+		try: 
+			with open(config.index_file, "x") as file: 
+				file.write("0") 
+		except FileExistsError: pass
+
+		# Read the value stored in the file
+		with open(config.index_file, "r") as file:
+			return int(file.read())
+
+	def _set_index(self, value):
+		with open(config.index_file, "w") as file:
+			file.write(str(value))
+
+	index = property(fget=_get_index, fset=_set_index)
+
 
 	async def setup_hook(self) -> None:
 		# start the task to run in the background
@@ -38,7 +55,6 @@ class QOTDClient(discord.Client):
 			print("There are no questions to ask!")
 			return
 
-		global index
 		if size == self.index + 1:
 			if config.should_loop:
 				loop.create_task(self.target_channel.send(content="Last question looping"))
@@ -69,6 +85,7 @@ class QOTDClient(discord.Client):
 		print(f'Logged in as {self.user} (ID: {self.user.id})')
 		print(self.target_channel)
 		print(config.discord_target_channel)
+		print(self.index)
 		self.initalized.set()
 
 	@tasks.loop(seconds=1800) # task runs every 30 minutes
@@ -93,7 +110,11 @@ client = QOTDClient(intents=intents)
 )
 @app_commands.describe(text='Question to ask')
 async def add_question(interaction, text: str):
-	print("adding question")
+	# Check if the user has admin permissions
+	if not interaction.user.guild_permissions.administrator:
+		await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+		return
+
 	lines = client.read_lines()
 
 	if text in lines:
@@ -110,7 +131,11 @@ async def add_question(interaction, text: str):
 )
 @app_commands.describe(text='Question to ask')
 async def add_question_tomorrow(interaction, text: str):
-	print("adding question tomorrow")
+	# Check if the user has admin permissions
+	if not interaction.user.guild_permissions.administrator:
+		await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+		return
+
 	lines = client.read_lines()
 
 	if text in lines:
@@ -120,5 +145,18 @@ async def add_question_tomorrow(interaction, text: str):
 	lines.insert(index + 1, text.strip())
 	client.write_lines(lines)
 	await interaction.response.send_message("Question successfully added!", ephemeral=True)
+
+@client.tree.command(
+	name="check_tomorrows_index",
+	description="Checks the index into the file of the question to be displayed tomorrow.",
+)
+async def check_tomorrows_index(interaction):
+	# Check if the user has admin permissions
+	if not interaction.user.guild_permissions.administrator:
+		await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+		return
+
+	lines = client.read_lines()
+	await interaction.response.send_message(f"{(client.index + 1) % len(lines)}", ephemeral=True)
 
 client.run(config.discord_token)
