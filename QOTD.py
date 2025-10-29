@@ -76,6 +76,9 @@ class QOTDClient(discord.Client):
 		# Make sure the qotd file exists!
 		open(config.qotd_file, "a").close()
 
+		# In case Discard disconnects and reconnects us clean any existing schedules
+		schedule.clear()  # remove old jobs
+
 		# Schedule printing
 		local_tz = pytz.timezone(config.timezone)
 		now = datetime.now(local_tz)
